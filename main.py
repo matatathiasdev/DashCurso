@@ -135,7 +135,7 @@ fig_quantidade_categorias = px.bar(
 
 
 # VISUALIZACAO STREAMLIT
-aba1, aba2, aba3 = st.tabs(['Receita','Quantidade de vendas'])
+aba1, aba2 = st.tabs(['Receita','Quantidade de vendas'])
 
 with aba1:
     coluna1, coluna2 = st.columns(2)
