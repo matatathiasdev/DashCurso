@@ -46,9 +46,6 @@ quantidade_mensal['Mes'] = receita_mensal['Data da Compra'].dt.month_name()
 quantidade_categorias = dados.groupby('Categoria do Produto')[['Preço']].count()
 quantidade_categorias = quantidade_categorias.rename(columns={'Preço': 'Qtd Compra'})
 
-## TABELAS - VENDEDORES
-vendedores = pd.DataFrame(dados.groupby('Vendedores')['Preço'].agg(['sum','count']))
-
 # GRAFICOS
 ## GRAFICOS - RECEITAS
 fig_mapa_receita = px.scatter_geo(
@@ -138,7 +135,7 @@ fig_quantidade_categorias = px.bar(
 
 
 # VISUALIZACAO STREAMLIT
-aba1, aba2, aba3 = st.tabs(['Receita','Quantidade de vendas','Vendedores'])
+aba1, aba2, aba3 = st.tabs(['Receita','Quantidade de vendas'])
 
 with aba1:
     coluna1, coluna2 = st.columns(2)
@@ -160,12 +157,3 @@ with aba2:
         st.metric('Quantidade', formata_numero(dados.shape[0]))
         st.plotly_chart(fig_quantidade_mensal, use_container_width=True)
         st.plotly_chart(fig_quantidade_categorias, use_container_width=True)
-with aba3:
-    qtd_vendedores = st.number_input("Quantidade de vendedores", 2, 10, 5)
-    coluna1, coluna2 = st.columns(2)
-    with coluna1:
-        st.metric('Receita', formata_numero(dados['Preço'].sum(), 'R$'))
-        # CRIACAO DO GRAFICO DENTRO DO WITH
-        fig
-    with coluna2:
-        st.metric('Quantidade', formata_numero(dados.shape[0]))
