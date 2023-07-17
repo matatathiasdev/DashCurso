@@ -1,10 +1,13 @@
+# BIBLIOTECAS
 import plotly.express as px
 import streamlit as st
 import pandas as pd
 import requests
 
+# LAYOUT DA PAGINA
 st.set_page_config(layout='wide')
 
+# FUNCAO FORMATA NUMERO
 def formata_numero(valor, prefixo = ''):
     for unidade in ['','mil']:
         if valor < 1000:
@@ -12,14 +15,45 @@ def formata_numero(valor, prefixo = ''):
         valor /= 1000
     return f'{prefixo} {valor:.2f} milhões'
 
-## shopping_trolley ADCIONAR UM EMOJI DE UM CARRINHO DE COMPRA 
+# shopping_trolley ADCIONAR UM EMOJI DE UM CARRINHO DE COMPRA 
 st.title('DASHBOAR DE VENDAS :shopping_trolley:')
 
-## LEITURA DOS DADOS USANDO REQUESTS PARA ACESSAR UM ARQUIVOS JSON E PASSAR PARA DATAFRAME PANDAS
+# LEITURA DOS DADOS USANDO REQUESTS PARA ACESSAR UM ARQUIVOS JSON E PASSAR PARA DATAFRAME PANDAS
 url = 'https://labdados.com/produtos'
-response = requests.get(url)
+regioes = ['Brasil','Centro-Oeste','Nordeste','Norte','Sudeste','Sul']
+
+## CRIA O MENU LATERAL DE FILTROS
+st.sidebar.title('Filtros')
+
+## FILTRO - CRIA UMA CAIXA DE SELEÇÃO E VALIDA SE A REGIAO SELECIONADA E BRASIL CASO SEKA A VARIAVEL REGIAO FICA VAZIA
+regiao = st.sidebar.selectbox('Região', regioes)
+if regiao == 'Brasil':
+    regiao = ''
+
+## FILTRO - CRIA UM CHECKBOX E VALIDA SE O MESMO ESTA SELECIONADO CASO NAO ESTEJA CRIA UMA BARRA DE SELEÇAO DE ANO
+todos_anos = st.sidebar.checkbox('Dados de todo o periodo', value=True)
+if todos_anos:
+    ano = ''
+else:
+    ano = st.sidebar.slider('Ano', 2020, 2023)
+
+## CRIA A QUERY QUE SERA USADA COMO PARAMETRO NA REQUISICAO DA URL
+query_string = {
+    'regiao':regiao.lower(),
+    'ano':ano
+}
+
+## REQUISICAO DA URL
+response = requests.get(url, params=query_string)
+
+## CRIACAO DE DATAFRAME APARTIR DO JSON OBTIDO NO RETORNO DA URL
 dados = pd.DataFrame.from_dict(response.json())
 dados['Data da Compra'] = pd.to_datetime(dados['Data da Compra'], format='%d/%m/%Y')
+
+## FILTRO - CRIA O FILTRO DE VENDEDORES
+filtro_vendedores = st.sidebar._multiselect('Vendedores', dados['Vendedor'].unique())
+if filtro_vendedores:
+    dados = dados[dados['Vendedor'].isin(filtro_vendedores)]
 
 # TABELAS
 ## TABELAS - RECEITAS
@@ -45,6 +79,9 @@ quantidade_mensal['Mes'] = receita_mensal['Data da Compra'].dt.month_name()
 
 quantidade_categorias = dados.groupby('Categoria do Produto')[['Preço']].count()
 quantidade_categorias = quantidade_categorias.rename(columns={'Preço': 'Qtd Compra'})
+
+## TABELAS - VENDEDORES
+vendedores = pd.DataFrame(dados.groupby('Vendedor')['Preço'].agg(['sum','count']))
 
 # GRAFICOS
 ## GRAFICOS - RECEITAS
@@ -135,7 +172,7 @@ fig_quantidade_categorias = px.bar(
 
 
 # VISUALIZACAO STREAMLIT
-aba1, aba2 = st.tabs(['Receita','Quantidade de vendas'])
+aba1, aba2, aba3 = st.tabs(['Receita','Quantidade de vendas','Vendedores'])
 
 with aba1:
     coluna1, coluna2 = st.columns(2)
@@ -157,3 +194,27 @@ with aba2:
         st.metric('Quantidade', formata_numero(dados.shape[0]))
         st.plotly_chart(fig_quantidade_mensal, use_container_width=True)
         st.plotly_chart(fig_quantidade_categorias, use_container_width=True)
+with aba3:
+    qtd_vendedores = st.number_input('Quantidade de vendedores', 2, 10, 5)
+
+    coluna1, coluna2 = st.columns(2)
+    with coluna1:
+        st.metric('Receita', formata_numero(dados['Preço'].sum(), 'R$'))
+        # GRAFICO COM INPUT DO USUARIO
+        fig_receita_vendedores = px.bar(vendedores[['sum']].sort_values('sum', ascending=False).head(qtd_vendedores), 
+                                        x='sum',
+                                        y=vendedores[['sum']].sort_values('sum', ascending=False).head(qtd_vendedores).index,
+                                        text_auto=True,
+                                        title=f'Top {qtd_vendedores} vendedores (receita)')
+        st.plotly_chart(fig_receita_vendedores)
+    with coluna2:
+        st.metric('Quantidade', formata_numero(dados.shape[0]))
+        # GRAFICO COM INPUT DO USUARIO
+        fig_venda_vendedores = px.bar(vendedores[['count']].sort_values('count', ascending=False).head(qtd_vendedores), 
+                                        x='count',
+                                        y=vendedores[['count']].sort_values('count', ascending=False).head(qtd_vendedores).index,
+                                        text_auto=True,
+                                        title=f'Top {qtd_vendedores} vendedores (quantidade de vendas)')
+        st.plotly_chart(fig_venda_vendedores)
+
+
